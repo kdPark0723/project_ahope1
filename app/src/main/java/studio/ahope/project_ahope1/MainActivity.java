@@ -1,55 +1,47 @@
 package studio.ahope.project_ahope1;
 
-import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.databinding.DataBindingUtil;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Toast;
 
+import studio.ahope.project_ahope1.Event.ActivityEvent;
+import studio.ahope.project_ahope1.Event.PermissionEvent;
 import studio.ahope.project_ahope1.databinding.MainActivityBinding;
-import studio.ahope.project_ahope1.lib.ServiceSystem;
-import studio.ahope.project_ahope1.lib.PermissionManager;
+import studio.ahope.project_ahope1.Service.MainService;
+import studio.ahope.project_ahope1.Manager.PermissionManager;
 
 /**
- * Last update : 2016-08-18
+ * Last update : 2016-11-08
  */
+/* while working */
 
 public class MainActivity extends AppCompatActivity {
 
-    // setting permission
-
-    public final String[] request = {
-            Manifest.permission.ACCESS_COARSE_LOCATION
-    };
-
-    Drawable drawable;
-    public final int requestPer = 1;
-    Intent serviceSystem;
-    public static MainActivityBinding binding;
+    private Drawable drawable;
+    private Intent MainService;
+    private MainActivityBinding binding;
+    private PermissionManager permissionManager;
+    ActivityEvent activityEvent;
+    PermissionEvent permissionEvent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        PermissionManager.autoRequest(this, this, request);
-        serviceSystem = new Intent(this, ServiceSystem.class);
-        startService(serviceSystem);
+        permissionManager = new PermissionManager(this);
+        startBroadcast(this);
 
         binding = DataBindingUtil.setContentView(this, R.layout.main_activity);
         themeEngine(0);
         //number of 0(zero) theme is Normal theme for application
 
-        /*while working
-        if() {
-            parsing.getPInfo("open");
-        }
-        */
+        MainService = new Intent(this, MainService.class);
+        startService(MainService);
     }
 
     private void themeEngine(int theme){
@@ -72,34 +64,37 @@ public class MainActivity extends AppCompatActivity {
     public void onDestroy(){
         super.onDestroy();
 
-        stopService(serviceSystem);
+        permissionEvent.stop("NEED_PERMISSION");
+        stopService(MainService);
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
-            case requestPer: {
-                if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED ) {
+            case 1: {
+                if(permissionManager.getAllStatus(permissions)) {
+                    startService(MainService);
                 } else {
-                    Toast.makeText(getApplicationContext(), R.string.perDefined, Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), R.string.permissionDefined, Toast.LENGTH_LONG).show();
                     finish();
-                }
-                break;
-            }
-            default : {
-                try {
-                    PermissionManager.iswait = false;
-                    PermissionManager.threadwait.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
                 }
             }
         }
     }
 
+    public MainActivityBinding getBinding(){
+        return this.binding;
+    }
+
+    private void startBroadcast(Context context) {
+        permissionEvent = new PermissionEvent(context);
+        permissionEvent.start("NEED_PERMISSION");
+        activityEvent = new ActivityEvent(this);
+        activityEvent.set("CHANGE_WEATHER_PROFILE");
+    }
+
     public void getResource(int dr){
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             drawable = ContextCompat.getDrawable(getApplicationContext(),dr);
         }else{
             drawable = getResources().getDrawable(dr);
